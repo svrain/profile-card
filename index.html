@@ -702,11 +702,9 @@ function refreshCards() {
 
 function renderBothCards() {
   const html = buildCardHTML(lastData);
-  ['card-preview', 'card-offscreen'].forEach(id => {
-    const el = document.getElementById(id);
-    el.innerHTML = html;
-    applyAccent(el, lastData.accent, lastData.accentRgb);
-  });
+  const el = document.getElementById('card-preview');
+  el.innerHTML = html;
+  applyAccent(el, lastData.accent, lastData.accentRgb);
 }
 
 /* ─── SCALE PREVIEW ─── */
@@ -722,127 +720,77 @@ function scalePreview() {
 }
 window.addEventListener('resize', () => { if (cardGenerated) scalePreview(); });
 
-/* ─── DOWNLOAD (고화질: html2canvas로 레이아웃 캡처 후 원본 이미지 직접 합성) ─── */
+/* ─── DOWNLOAD ─── */
+/* 전략: 미리보기 카드(#card-preview)를 화면에 보이는 상태 그대로
+   html2canvas로 캡처 → 이미지가 정상적으로 포함됨.
+   offscreen div는 뷰포트 밖이라 html2canvas가 이미지를 못 읽으므로 사용 안 함. */
 function downloadCard() {
-  const card = document.getElementById('card-offscreen');
-  const btn  = document.getElementById('btn-download');
+  const btn = document.getElementById('btn-download');
   btn.innerHTML = '저장 중…';
   btn.style.opacity = '0.6';
   btn.style.pointerEvents = 'none';
 
-  const SCALE = 3; // 출력 해상도: 960*3=2880 × 540*3=1620
+  const CARD_W = 960;
+  const CARD_H = 540;
+  const SCALE  = 3; // 출력: 2880×1620
 
   document.fonts.ready.then(() => {
+    // 미리보기 카드가 scale(transform)되어 있으므로
+    // 임시로 크기 960×540 고정 div를 body에 붙이고 캡처 후 제거
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = `
+      position:fixed;left:0;top:0;
+      width:${CARD_W}px;height:${CARD_H}px;
+      overflow:hidden;border-radius:12px;
+      z-index:-9999;opacity:0.01;
+      pointer-events:none;
+    `;
+    document.body.appendChild(wrapper);
+
+    // 카드 HTML + accent 재생성
+    const tempCard = document.createElement('div');
+    tempCard.className = 'profile-card';
+    tempCard.innerHTML = buildCardHTML(lastData);
+    tempCard.style.setProperty('--card-accent', lastData.accent);
+    tempCard.style.setProperty('--card-accent-rgb', lastData.accentRgb);
+    wrapper.appendChild(tempCard);
+
     setTimeout(() => {
-      // Step 1: html2canvas로 전체 카드 캡처 (이미지 제외한 레이어 포함)
-      html2canvas(card, {
+      html2canvas(tempCard, {
         scale: SCALE,
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#0c0f15',
         logging: false,
-        width: 960,
-        height: 540,
+        width: CARD_W,
+        height: CARD_H,
         scrollX: 0,
         scrollY: 0,
         x: 0,
         y: 0,
-      }).then(baseCanvas => {
-        // Step 2: 원본 이미지가 있으면 별도 Canvas에 직접 합성
-        if (!lastData.photoUrl) {
-          // 이미지 없음 → 바로 저장
-          saveCanvas(baseCanvas);
-          return;
+        onclone: (doc, el) => {
+          // 클론된 요소도 동일한 크기 보장
+          el.style.width  = CARD_W + 'px';
+          el.style.height = CARD_H + 'px';
         }
-
-        const img = new Image();
-        img.onload = () => {
-          const W = 960 * SCALE;
-          const H = 540 * SCALE;
-
-          // 최종 합성 캔버스
-          const finalCanvas = document.createElement('canvas');
-          finalCanvas.width  = W;
-          finalCanvas.height = H;
-          const ctx = finalCanvas.getContext('2d');
-
-          // 2a. 이미지 배경을 먼저 그린다 (background-size / position 반영)
-          const posX = 50 + imgX * 0.5;   // 0~100
-          const posY = 50 + imgY * 0.5;
-          const sizeRatio = imgScale / 100; // 1.0 = 100%
-
-          // 이미지 표시 크기 (카드 너비 기준)
-          const imgDrawW = W * sizeRatio;
-          const imgDrawH = imgDrawW * (img.naturalHeight / img.naturalWidth);
-
-          // background-position % 계산
-          const offsetX = (posX / 100) * (W - imgDrawW);
-          const offsetY = (posY / 100) * (H - imgDrawH);
-
-          ctx.save();
-          ctx.beginPath();
-          ctx.roundRect(0, 0, W, H, 12 * SCALE);
-          ctx.clip();
-
-          ctx.drawImage(img, offsetX, offsetY, imgDrawW, imgDrawH);
-          ctx.restore();
-
-          // 2b. 그 위에 html2canvas 결과 (오버레이·텍스트 등) 합성
-          // html2canvas 결과는 이미 배경 이미지를 포함하나 저화질 —
-          // 따라서 html2canvas를 이미지 없이 다시 캡처해야 정확.
-          // 대신 간단하게: baseCanvas 에서 이미지 영역을 투명하게 만들고 합성.
-          // → 가장 간단하고 확실한 방법: 이미지 숨기고 html2canvas 재캡처
-
-          // 이미지 div를 임시로 숨김
-          const bgEl = card.querySelector('.card-bg-photo');
-          if (bgEl) bgEl.style.visibility = 'hidden';
-
-          html2canvas(card, {
-            scale: SCALE,
-            useCORS: true,
-            allowTaint: true,
-            backgroundColor: 'transparent',
-            logging: false,
-            width: 960,
-            height: 540,
-            scrollX: 0,
-            scrollY: 0,
-            x: 0,
-            y: 0,
-          }).then(overlayCanvas => {
-            if (bgEl) bgEl.style.visibility = '';
-
-            // 최종: 이미지(고해상도) + 오버레이 합성
-            ctx.drawImage(overlayCanvas, 0, 0, W, H);
-
-            saveCanvas(finalCanvas);
-          }).catch(() => {
-            if (bgEl) bgEl.style.visibility = '';
-            // 실패 시 기본 캔버스로 저장
-            saveCanvas(baseCanvas);
-          });
-        };
-        img.onerror = () => saveCanvas(baseCanvas);
-        img.src = lastData.photoUrl;
+      }).then(canvas => {
+        document.body.removeChild(wrapper);
+        const link = document.createElement('a');
+        link.download = `agent_${(lastData.codename||'profile').toLowerCase()}_card.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> PNG 저장`;
+        btn.style.opacity = '1';
+        btn.style.pointerEvents = 'auto';
       }).catch(err => {
+        document.body.removeChild(wrapper);
         console.error(err);
         btn.textContent = '오류 발생';
         btn.style.opacity = '1';
         btn.style.pointerEvents = 'auto';
       });
-    }, 150);
+    }, 200);
   });
-}
-
-function saveCanvas(canvas) {
-  const btn = document.getElementById('btn-download');
-  const link = document.createElement('a');
-  link.download = `agent_${(lastData.codename||'profile').toLowerCase()}_card.png`;
-  link.href = canvas.toDataURL('image/png');
-  link.click();
-  btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> PNG 저장`;
-  btn.style.opacity = '1';
-  btn.style.pointerEvents = 'auto';
 }
 
 /* ─── AGE: 숫자만 허용 ─── */

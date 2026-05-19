@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent Profile Card Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@400;500;700;900&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+
+:root{
+  --accent:#00c8ff;
+  --bg:#080a0e;
+  --surface:#0f1219;
+  --surface2:#151a24;
+  --border:#1c2232;
+  --text:#e2e8f4;
+  --text-muted:#5a6880;
+  --text-dim:#2e3a50;
+}
+
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;}
+
+/* ── HEADER ── */
+header{width:100%;padding:1.5rem 2rem 1.2rem;text-align:center;border-bottom:1px solid var(--border);background:linear-gradient(180deg,rgba(0,200,255,0.03) 0%,transparent 100%);}
+header h1{font-family:'Orbitron',sans-serif;font-size:clamp(0.95rem,2.5vw,1.4rem);font-weight:700;letter-spacing:0.22em;color:var(--accent);}
+header p{margin-top:0.3rem;font-size:0.72rem;color:var(--text-muted);letter-spacing:0.12em;}
+
+/* ── MAIN ── */
+.main{display:flex;gap:2rem;width:100%;max-width:1340px;padding:2rem;align-items:flex-start;}
+
+/* ── FORM PANEL ── */
+.form-panel{flex:0 0 310px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.4rem;position:sticky;top:2rem;max-height:calc(100vh - 120px);overflow-y:auto;}
+.form-panel::-webkit-scrollbar{width:3px;}
+.form-panel::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+.form-panel h2{font-family:'Rajdhani',sans-serif;font-size:0.68rem;font-weight:600;letter-spacing:0.22em;color:var(--accent);text-transform:uppercase;margin-bottom:1rem;padding-bottom:0.5rem;border-bottom:1px solid var(--border);}
+
+.field{margin-bottom:0.8rem;}
+.field label{display:block;font-size:0.65rem;font-weight:500;letter-spacing:0.14em;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.28rem;}
+.field input,.field select,.field textarea{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:0.48rem 0.65rem;color:var(--text);font-family:'Noto Sans KR',sans-serif;font-size:0.82rem;outline:none;transition:border-color 0.2s;-webkit-appearance:none;appearance:none;resize:none;}
+.field textarea{line-height:1.5;}
+.field select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%235a6880' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 0.65rem center;padding-right:1.8rem;}
+.field select option{background:#151a24;}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent);}
+.field input::placeholder,.field textarea::placeholder{color:var(--text-dim);}
+
+/* TAG */
+.tag-area{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:0.32rem 0.42rem;display:flex;flex-wrap:wrap;gap:0.25rem;cursor:text;transition:border-color 0.2s;min-height:38px;align-items:center;}
+.tag-area:focus-within{border-color:var(--accent);}
+.tag{background:rgba(0,200,255,0.1);border:1px solid rgba(0,200,255,0.22);border-radius:3px;padding:0.12rem 0.4rem;font-size:0.73rem;color:var(--accent);display:flex;align-items:center;gap:0.22rem;}
+.tag .rm{cursor:pointer;opacity:0.5;font-size:0.82em;line-height:1;}
+.tag .rm:hover{opacity:1;}
+.tag-input{border:none;background:transparent;outline:none;color:var(--text);font-family:'Noto Sans KR',sans-serif;font-size:0.82rem;min-width:60px;flex:1;}
+.tag-input::placeholder{color:var(--text-dim);}
+.tag-hint{font-size:0.62rem;color:var(--text-dim);margin-top:0.22rem;}
+
+/* PHOTO UPLOAD */
+.photo-upload{position:relative;width:100%;height:78px;border:1.5px dashed var(--border);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.3rem;cursor:pointer;transition:border-color 0.2s;overflow:hidden;}
+.photo-upload:hover{border-color:var(--accent);}
+.photo-upload input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;z-index:10;}
+.pu-icon{color:var(--text-muted);pointer-events:none;}
+.pu-text{font-size:0.68rem;color:var(--text-muted);pointer-events:none;}
+.photo-thumb{position:absolute;inset:0;background-size:cover;background-position:center;border-radius:6px;pointer-events:none;display:none;}
+.photo-change-overlay{position:absolute;inset:0;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:white;opacity:0;transition:opacity 0.2s;border-radius:6px;font-family:'Noto Sans KR',sans-serif;pointer-events:none;}
+.photo-upload:hover .photo-change-overlay{opacity:1;}
+
+/* IMAGE CONTROLS */
+.img-controls{display:none;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:0.6rem 0.65rem;margin-top:0.4rem;}
+.img-controls.visible{display:block;}
+.img-ctrl-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:0.45rem;}
+.img-ctrl-title{font-size:0.6rem;color:var(--text-muted);letter-spacing:0.1em;text-transform:uppercase;}
+.img-reset-btn{background:transparent;border:1px solid var(--border);border-radius:3px;color:var(--text-muted);font-size:0.6rem;padding:0.15rem 0.4rem;cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:border-color 0.15s,color 0.15s;}
+.img-reset-btn:hover{border-color:var(--accent);color:var(--accent);}
+.img-ctrl-row{display:flex;align-items:center;gap:0.45rem;margin-bottom:0.3rem;}
+.img-ctrl-row:last-child{margin-bottom:0;}
+.img-ctrl-label{font-size:0.6rem;color:var(--text-muted);white-space:nowrap;min-width:38px;}
+.img-ctrl-row input[type=range]{flex:1;height:2px;cursor:pointer;accent-color:var(--accent);}
+.img-ctrl-val{font-size:0.62rem;color:var(--accent);min-width:32px;text-align:right;font-family:'Rajdhani',sans-serif;font-weight:600;}
+
+/* GENERATE */
+.btn-generate{width:100%;margin-top:1rem;padding:0.68rem;background:var(--accent);color:#000;border:none;border-radius:6px;font-family:'Orbitron',sans-serif;font-size:0.72rem;font-weight:700;letter-spacing:0.16em;cursor:pointer;transition:opacity 0.2s,transform 0.15s;}
+.btn-generate:hover{opacity:0.85;transform:translateY(-1px);}
+.btn-generate:active{transform:translateY(0);}
+
+/* ── PREVIEW PANEL ── */
+.preview-panel{flex:1;min-width:0;max-width:720px;}
+.preview-panel>h2{font-family:'Rajdhani',sans-serif;font-size:0.68rem;font-weight:600;letter-spacing:0.22em;color:var(--text-muted);text-transform:uppercase;margin-bottom:1rem;}
+
+.color-toolbar{display:flex;align-items:center;gap:0.75rem;margin-bottom:1.1rem;padding:0.65rem 0.85rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;opacity:0;pointer-events:none;transition:opacity 0.3s;flex-wrap:wrap;}
+.color-toolbar.visible{opacity:1;pointer-events:auto;}
+.color-toolbar label{font-size:0.65rem;font-weight:600;letter-spacing:0.12em;color:var(--text-muted);text-transform:uppercase;white-space:nowrap;}
+.color-toolbar input[type="color"]{width:30px;height:30px;border:1px solid var(--border);border-radius:5px;padding:2px;background:var(--surface2);cursor:pointer;}
+.color-presets{display:flex;gap:0.3rem;flex-wrap:wrap;}
+.color-dot{width:19px;height:19px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform 0.15s,border-color 0.15s;}
+.color-dot:hover{transform:scale(1.2);}
+.color-dot.active{border-color:rgba(255,255,255,0.9);}
+
+.card-placeholder{width:100%;aspect-ratio:16/9;background:var(--surface);border:1.5px dashed var(--border);border-radius:12px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:0.7rem;color:var(--text-dim);}
+.card-placeholder p{font-size:0.75rem;letter-spacing:0.08em;}
+
+.btn-download{display:none;margin-top:0.85rem;padding:0.5rem 1.1rem;background:transparent;color:var(--accent);border:1px solid rgba(0,200,255,0.4);border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:0.8rem;font-weight:600;letter-spacing:0.12em;cursor:pointer;transition:background 0.2s,border-color 0.2s;align-items:center;gap:0.35rem;}
+.btn-download:hover{background:rgba(0,200,255,0.07);border-color:var(--accent);}
+.btn-download.visible{display:inline-flex;}
+
+/* ════════════════════════════════════════
+   PROFILE CARD — 960×540 (16:9)
+   Full-bleed photo BG + bottom gradient
+════════════════════════════════════════ */
+#card-preview-wrap{display:none;width:100%;position:relative;}
+#card-preview-inner{width:100%;overflow:hidden;border-radius:10px;position:relative;}
+
+/* Offscreen exact render */
+#card-render{position:fixed;left:-9999px;top:0;width:960px;height:540px;overflow:hidden;pointer-events:none;z-index:-1;}
+
+/* ── THE CARD ── */
+.profile-card{
+  --card-accent:#00c8ff;
+  --card-accent-rgb:0,200,255;
+  width:960px;height:540px;
+  position:relative;
+  overflow:hidden;
+  border-radius:12px;
+  font-family:'Noto Sans KR','Rajdhani',sans-serif;
+  flex-shrink:0;
+  background:#0c0f15;
+}
+
+/* Full-bleed BG photo */
+.card-bg-photo{
+  position:absolute;inset:0;
+  background-size:cover;
+  background-repeat:no-repeat;
+  z-index:0;
+}
+
+/* Bottom gradient overlay — dark from bottom, fade to transparent ~55% up */
+.card-overlay-gradient{
+  position:absolute;inset:0;
+  background:linear-gradient(
+    to top,
+    rgba(0,0,0,0.96) 0%,
+    rgba(0,0,0,0.82) 22%,
+    rgba(0,0,0,0.5)  42%,
+    rgba(0,0,0,0.12) 62%,
+    rgba(0,0,0,0)    80%
+  );
+  z-index:1;
+}
+
+/* Left vignette — helps text on left side */
+.card-overlay-left{
+  position:absolute;inset:0;
+  background:linear-gradient(
+    to right,
+    rgba(0,0,0,0.45) 0%,
+    rgba(0,0,0,0)    40%
+  );
+  z-index:1;
+}
+
+/* Top bar */
+.card-topbar{
+  position:absolute;top:0;left:0;right:0;
+  height:3px;
+  background:var(--card-accent);
+  z-index:6;
+}
+
+/* Corner brackets */
+.card-corner{position:absolute;width:20px;height:20px;border-color:rgba(var(--card-accent-rgb),0.8);border-style:solid;z-index:8;}
+.card-corner.tl{top:12px;left:12px;border-width:2px 0 0 2px;}
+.card-corner.tr{top:12px;right:12px;border-width:2px 2px 0 0;}
+.card-corner.bl{bottom:12px;left:12px;border-width:0 0 2px 2px;}
+.card-corner.br{bottom:12px;right:12px;border-width:0 2px 2px 0;}
+
+/* ── CONTENT LAYER ── */
+.card-content{
+  position:absolute;inset:0;
+  z-index:4;
+  display:flex;
+  flex-direction:column;
+  justify-content:flex-end;
+  padding:0 44px 38px 44px;
+}
+
+/* Top-right: class badge */
+.card-badge-wrap{
+  position:absolute;
+  top:26px;right:40px;
+  z-index:5;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:0;
+}
+.card-badge-line{
+  width:1px;
+  height:28px;
+  background:linear-gradient(to bottom,transparent,rgba(var(--card-accent-rgb),0.6));
+  margin-right:12px;
+  margin-bottom:6px;
+}
+.card-class-badge{
+  font-family:'Orbitron',sans-serif;
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:0.22em;
+  color:var(--card-accent);
+  border:1px solid rgba(var(--card-accent-rgb),0.35);
+  padding:5px 12px;
+  border-radius:2px;
+  background:rgba(var(--card-accent-rgb),0.06);
+  white-space:nowrap;
+}
+
+/* ── BOTTOM INFO ── */
+.card-meta-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-bottom:10px;
+}
+.card-element-pill{
+  font-family:'Rajdhani',sans-serif;
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:0.18em;
+  text-transform:uppercase;
+  padding:3px 10px;
+  border-radius:2px;
+  border:1px solid;
+}
+.pill-aqua  {background:rgba(0,180,255,0.1);border-color:rgba(0,180,255,0.4);color:#5bcfff;}
+.pill-pyre  {background:rgba(220,30,30,0.12);border-color:rgba(220,30,30,0.45);color:#ff4444;}
+.pill-verde {background:rgba(0,210,80,0.1);border-color:rgba(0,210,80,0.4);color:#40e878;}
+.pill-fulmen{background:rgba(255,220,0,0.1);border-color:rgba(255,220,0,0.4);color:#ffe040;}
+.pill-aero  {background:rgba(180,220,255,0.1);border-color:rgba(180,220,255,0.4);color:#aad8ff;}
+.pill-glacies{background:rgba(160,240,255,0.1);border-color:rgba(160,240,255,0.4);color:#c0eeff;}
+.pill-none  {background:rgba(255,255,255,0.05);border-color:rgba(255,255,255,0.15);color:rgba(255,255,255,0.4);}
+
+.card-tags-inline{
+  display:flex;gap:7px;flex-wrap:wrap;align-items:center;
+}
+.card-tag{font-size:11px;color:rgba(255,255,255,0.35);letter-spacing:0.04em;font-family:'Noto Sans KR',sans-serif;}
+
+/* Codename */
+.card-codename{
+  font-family:'Orbitron',sans-serif;
+  font-size:54px;
+  font-weight:900;
+  letter-spacing:0.04em;
+  color:#ffffff;
+  line-height:0.95;
+  text-transform:uppercase;
+  margin-bottom:8px;
+  text-shadow:0 2px 24px rgba(0,0,0,0.6);
+}
+
+/* Name + age row */
+.card-namerow{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  margin-bottom:14px;
+}
+.card-realname{
+  font-size:17px;
+  font-weight:300;
+  color:rgba(255,255,255,0.6);
+  letter-spacing:0.04em;
+}
+.card-sep{width:1px;height:13px;background:rgba(255,255,255,0.2);}
+.card-age{font-size:15px;color:rgba(255,255,255,0.38);}
+
+/* Catchphrase */
+.card-catchphrase{
+  position:relative;
+  margin-bottom:18px;
+  padding-left:14px;
+}
+.card-catchphrase::before{
+  content:'';
+  position:absolute;
+  left:0;top:2px;bottom:2px;
+  width:2px;
+  background:var(--card-accent);
+  opacity:0.7;
+}
+.card-catchphrase-inner{
+  display:block;
+}
+.card-catchphrase-quote{
+  color:var(--card-accent);
+  opacity:0.75;
+  font-family:'Georgia',serif;
+  font-size:16px;
+  line-height:1;
+  display:inline;
+}
+.card-catchphrase-text{
+  font-size:13px;
+  font-weight:300;
+  color:rgba(255,255,255,0.52);
+  letter-spacing:0.03em;
+  line-height:1.55;
+  font-style:italic;
+  display:inline;
+}
+
+/* Divider line */
+.card-divider{
+  width:100%;
+  height:1px;
+  background:linear-gradient(to right,rgba(var(--card-accent-rgb),0.5),rgba(var(--card-accent-rgb),0.05) 70%,transparent);
+  margin-bottom:14px;
+}
+
+/* Placeholder no-photo state */
+.card-no-photo-bg{
+  position:absolute;inset:0;
+  background:radial-gradient(ellipse at 70% 40%,#1a2035 0%,#0c0f15 70%);
+  z-index:0;
+}
+
+@media(max-width:900px){.main{flex-direction:column;}.form-panel{position:static;flex:none;width:100%;max-height:none;}}
+@media(max-width:600px){.main{padding:1rem;}}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Agent Profile Card Generator</h1>
+  <p>CLASSIFIED — AUTHORIZED PERSONNEL ONLY</p>
+</header>
+
+<div class="main">
+
+<!-- ══ FORM ══ -->
+<div class="form-panel">
+  <h2>/ Agent Data Input</h2>
+
+  <div class="field">
+    <label>Codename <span style="color:#e05560">*</span></label>
+    <input type="text" id="f-codename" placeholder="CODE NAME" maxlength="20" lang="en" inputmode="text" autocomplete="off" style="text-transform:uppercase;font-family:'Orbitron',sans-serif;letter-spacing:0.08em;">
+  </div>
+
+  <div style="display:flex;gap:0.55rem;">
+    <div class="field" style="flex:1;"><label>본명</label><input type="text" id="f-realname" placeholder="홍길동" lang="ko"></div>
+    <div class="field" style="flex:0 0 62px;"><label>나이</label><input type="text" id="f-age" placeholder="--" inputmode="numeric" pattern="[0-9]*" maxlength="3"></div>
+  </div>
+
+  <div style="display:flex;gap:0.55rem;">
+    <div class="field" style="flex:1;">
+      <label>등급</label>
+      <select id="f-grade">
+        <option value="">선택</option>
+        <option value="S">S</option><option value="A">A</option>
+        <option value="B">B</option><option value="C">C</option>
+      </select>
+    </div>
+    <div class="field" style="flex:1;">
+      <label>직급</label>
+      <select id="f-rank">
+        <option value="">선택</option>
+        <option value="SENTINEL">센티넬 (SENTINEL)</option>
+        <option value="GUIDE">가이드 (GUIDE)</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="field">
+    <label>속성</label>
+    <select id="f-element">
+      <option value="none">없음</option>
+      <option value="aqua">물 (Aqua)</option>
+      <option value="pyre">불 (Pyre)</option>
+      <option value="verde">풀 (Verde)</option>
+      <option value="fulmen">번개 (Fulmen)</option>
+      <option value="aero">바람 (Aero)</option>
+      <option value="glacies">얼음 (Glacies)</option>
+    </select>
+  </div>
+
+  <div class="field">
+    <label>캐치프레이즈</label>
+    <textarea id="f-catchphrase" rows="2" placeholder="캐릭터의 대표 문구를 입력하세요"></textarea>
+  </div>
+
+  <div class="field">
+    <label>성격 키워드 <span style="color:var(--text-dim);font-size:0.85em;">(최대 5개)</span></label>
+    <div class="tag-area" id="tag-area" onclick="document.getElementById('tag-input-el').focus()">
+      <input class="tag-input" id="tag-input-el" type="text" placeholder="입력 후 Enter">
+    </div>
+    <p class="tag-hint">Enter 또는 Space로 추가</p>
+  </div>
+
+  <div class="field">
+    <label>캐릭터 사진</label>
+    <div class="photo-upload" id="photo-upload-area">
+      <input type="file" id="f-photo" accept="image/*">
+      <svg class="pu-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+      <span class="pu-text">이미지 파일을 선택하세요</span>
+      <div class="photo-thumb" id="photo-thumb"></div>
+      <div class="photo-change-overlay">클릭하여 변경</div>
+    </div>
+
+    <div class="img-controls" id="img-controls">
+      <div class="img-ctrl-header">
+        <span class="img-ctrl-title">이미지 조절</span>
+        <button class="img-reset-btn" onclick="resetImgTransform()">초기화</button>
+      </div>
+      <div class="img-ctrl-row">
+        <span class="img-ctrl-label">크기</span>
+        <input type="range" id="img-scale" min="50" max="300" value="100" step="1" oninput="updateImgTransform()">
+        <span class="img-ctrl-val" id="img-scale-val">100%</span>
+      </div>
+      <div class="img-ctrl-row">
+        <span class="img-ctrl-label">X 위치</span>
+        <input type="range" id="img-x" min="-100" max="100" value="0" step="1" oninput="updateImgTransform()">
+        <span class="img-ctrl-val" id="img-x-val">0</span>
+      </div>
+      <div class="img-ctrl-row">
+        <span class="img-ctrl-label">Y 위치</span>
+        <input type="range" id="img-y" min="-100" max="100" value="0" step="1" oninput="updateImgTransform()">
+        <span class="img-ctrl-val" id="img-y-val">0</span>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-generate" onclick="generateCard()">▶ GENERATE PROFILE</button>
+</div>
+
+<!-- ══ PREVIEW ══ -->
+<div class="preview-panel">
+  <h2>/ Profile Card Preview</h2>
+
+  <div class="color-toolbar" id="color-toolbar">
+    <label>Accent Color</label>
+    <input type="color" id="color-picker" value="#00c8ff" oninput="applyColor(this.value)">
+    <div class="color-presets" id="color-presets"></div>
+  </div>
+
+  <div class="card-placeholder" id="card-placeholder">
+    <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="0.8" opacity="0.25"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+    <p>정보 입력 후 GENERATE 클릭</p>
+  </div>
+
+  <div id="card-preview-wrap">
+    <div id="card-preview-inner">
+      <div class="profile-card" id="card-preview"></div>
+    </div>
+  </div>
+
+  <button class="btn-download" id="btn-download" onclick="downloadCard()">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    PNG 저장
+  </button>
+</div>
+
+</div>
+
+<!-- ══ OFFSCREEN RENDER (exact 960×540, never scaled) ══ -->
+<div id="card-render">
+  <div class="profile-card" id="card-offscreen"></div>
+</div>
+
+<script>
+/* ─── STATE ─── */
+let tags = [];
+let photoDataUrl = null;
+let imgScale = 100, imgX = 0, imgY = 0;
+let currentAccent = '#00c8ff';
+let currentAccentRgb = '0,200,255';
+let cardGenerated = false;
+let lastData = {};
+
+/* ─── ELEMENT CONFIG ─── */
+const elementConfig = {
+  none:    {label:'NONE',    cls:'pill-none'},
+  aqua:    {label:'AQUA',    cls:'pill-aqua'},
+  pyre:    {label:'PYRE',    cls:'pill-pyre'},
+  verde:   {label:'VERDE',   cls:'pill-verde'},
+  fulmen:  {label:'FULMEN',  cls:'pill-fulmen'},
+  aero:    {label:'AERO',    cls:'pill-aero'},
+  glacies: {label:'GLACIES', cls:'pill-glacies'},
+};
+
+/* ─── TAG INPUT ─── */
+const tagArea  = document.getElementById('tag-area');
+const tagInput = document.getElementById('tag-input-el');
+
+tagInput.addEventListener('keydown', e => {
+  if ((e.key === 'Enter' || e.key === ' ') && tagInput.value.trim()) {
+    e.preventDefault();
+    addTag(tagInput.value.trim().replace(/^#/, ''));
+    tagInput.value = '';
+  } else if (e.key === 'Backspace' && !tagInput.value && tags.length) {
+    removeTag(tags.length - 1);
+  }
+});
+function addTag(v) { if (!v || tags.length >= 5 || tags.includes(v)) return; tags.push(v); renderTags(); }
+function removeTag(i) { tags.splice(i, 1); renderTags(); }
+function renderTags() {
+  tagArea.querySelectorAll('.tag').forEach(t => t.remove());
+  tags.forEach((t, i) => {
+    const el = document.createElement('span');
+    el.className = 'tag';
+    el.innerHTML = `#${t}<span class="rm" onclick="removeTag(${i})">✕</span>`;
+    tagArea.insertBefore(el, tagInput);
+  });
+}
+
+/* ─── PHOTO ─── */
+document.getElementById('f-photo').addEventListener('change', function () {
+  const file = this.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    photoDataUrl = e.target.result;
+    const thumb = document.getElementById('photo-thumb');
+    thumb.style.backgroundImage = `url(${photoDataUrl})`;
+    thumb.style.display = 'block';
+    document.querySelector('.pu-icon').style.display = 'none';
+    document.querySelector('.pu-text').style.display = 'none';
+    document.getElementById('img-controls').classList.add('visible');
+    if (cardGenerated) refreshCards();
+  };
+  reader.readAsDataURL(file);
+});
+
+/* ─── IMG TRANSFORM ─── */
+function getBgStyle() {
+  const posX = 50 + imgX * 0.5;
+  const posY = 50 + imgY * 0.5;
+  return `background-size:${imgScale}%;background-position:${posX}% ${posY}%;`;
+}
+function updateImgTransform() {
+  imgScale = parseInt(document.getElementById('img-scale').value);
+  imgX     = parseInt(document.getElementById('img-x').value);
+  imgY     = parseInt(document.getElementById('img-y').value);
+  document.getElementById('img-scale-val').textContent = imgScale + '%';
+  document.getElementById('img-x-val').textContent = imgX;
+  document.getElementById('img-y-val').textContent = imgY;
+  if (cardGenerated) refreshCards();
+}
+function resetImgTransform() {
+  imgScale = 100; imgX = 0; imgY = 0;
+  document.getElementById('img-scale').value = 100;
+  document.getElementById('img-x').value = 0;
+  document.getElementById('img-y').value = 0;
+  document.getElementById('img-scale-val').textContent = '100%';
+  document.getElementById('img-x-val').textContent = '0';
+  document.getElementById('img-y-val').textContent = '0';
+  if (cardGenerated) refreshCards();
+}
+
+/* ─── COLORS ─── */
+const presets = ['#00c8ff','#a78bfa','#f43f5e','#fb923c','#34d399','#e879f9','#fbbf24','#f8fafc'];
+document.getElementById('color-picker').addEventListener('change', function () { applyColor(this.value); });
+const presetContainer = document.getElementById('color-presets');
+presets.forEach(c => {
+  const dot = document.createElement('div');
+  dot.className = 'color-dot' + (c === '#00c8ff' ? ' active' : '');
+  dot.style.background = c;
+  dot.title = c;
+  dot.onclick = () => {
+    document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active'));
+    dot.classList.add('active');
+    document.getElementById('color-picker').value = c;
+    applyColor(c);
+  };
+  presetContainer.appendChild(dot);
+});
+function hexToRgb(h) { return { r:parseInt(h.slice(1,3),16), g:parseInt(h.slice(3,5),16), b:parseInt(h.slice(5,7),16) }; }
+function applyColor(hex) {
+  if (!hex || hex.length < 7) return;
+  currentAccent = hex;
+  const {r,g,b} = hexToRgb(hex);
+  currentAccentRgb = `${r},${g},${b}`;
+  if (cardGenerated) refreshCards();
+}
+
+/* ─── BUILD CARD HTML ─── */
+function buildCardHTML(d) {
+  const grade   = d.grade || '';
+  const rank    = d.rank  || '';
+  const classLbl = [grade ? `${grade}-CLASS` : '', rank].filter(Boolean).join(' ');
+
+  // BG photo or gradient
+  const bgPhotoHtml = d.photoUrl
+    ? `<div class="card-bg-photo" style="background-image:url('${d.photoUrl}');${d.imgStyle}"></div>`
+    : `<div class="card-no-photo-bg"></div>`;
+
+  // Element pill
+  const elPill = (d.element && d.element !== 'none')
+    ? `<span class="card-element-pill ${elementConfig[d.element].cls}">${elementConfig[d.element].label}</span>`
+    : '';
+
+  // Tags
+  const tagsHtml = d.tags.length
+    ? d.tags.map(t => `<span class="card-tag">#${t}</span>`).join('')
+    : '';
+
+  // Name + age row
+  const nameRowInner = [
+    d.realname ? `<span class="card-realname">${d.realname}</span>` : '',
+    (d.realname && d.age) ? `<div class="card-sep"></div>` : '',
+    d.age ? `<span class="card-age">${d.age}세</span>` : '',
+  ].join('');
+  const nameRowHtml = nameRowInner ? `<div class="card-namerow">${nameRowInner}</div>` : '';
+
+  // Catchphrase
+  const cpHtml = d.catchphrase ? `
+    <div class="card-catchphrase">
+      <div class="card-catchphrase-inner"><span class="card-catchphrase-quote">&ldquo;</span><span class="card-catchphrase-text">&thinsp;${d.catchphrase}&thinsp;</span><span class="card-catchphrase-quote">&rdquo;</span></div>
+    </div>` : '';
+
+  // Meta row (element + tags)
+  const metaHtml = (elPill || tagsHtml) ? `
+    <div class="card-meta-row">
+      ${elPill}
+      <div class="card-tags-inline">${tagsHtml}</div>
+    </div>` : '';
+
+  // Class badge (top-right)
+  const badgeHtml = classLbl ? `
+    <div class="card-badge-wrap">
+      <div class="card-badge-line"></div>
+      <div class="card-class-badge">${classLbl}</div>
+    </div>` : '';
+
+  return `
+    ${bgPhotoHtml}
+    <div class="card-overlay-gradient"></div>
+    <div class="card-overlay-left"></div>
+    <div class="card-topbar"></div>
+    <div class="card-corner tl"></div>
+    <div class="card-corner tr"></div>
+    <div class="card-corner bl"></div>
+    <div class="card-corner br"></div>
+    ${badgeHtml}
+    <div class="card-content">
+      ${metaHtml}
+      <div class="card-divider"></div>
+      ${cpHtml}
+      ${nameRowHtml}
+      <div class="card-codename">${d.codename || 'CODENAME'}</div>
+    </div>
+  `;
+}
+
+function applyAccent(el, accent, accentRgb) {
+  el.style.setProperty('--card-accent', accent);
+  el.style.setProperty('--card-accent-rgb', accentRgb);
+}
+
+/* ─── GENERATE ─── */
+function generateCard() {
+  const codename = document.getElementById('f-codename').value.trim().toUpperCase();
+  if (!codename) {
+    alert('코드네임을 입력하세요.');
+    document.getElementById('f-codename').focus();
+    return;
+  }
+
+  lastData = {
+    codename,
+    realname:   document.getElementById('f-realname').value.trim(),
+    age:        document.getElementById('f-age').value.trim(),
+    grade:      document.getElementById('f-grade').value,
+    rank:       document.getElementById('f-rank').value,
+    element:    document.getElementById('f-element').value,
+    catchphrase:document.getElementById('f-catchphrase').value.trim(),
+    tags:       [...tags],
+    photoUrl:   photoDataUrl,
+    imgStyle:   photoDataUrl ? getBgStyle() : '',
+    accent:     currentAccent,
+    accentRgb:  currentAccentRgb,
+  };
+
+  renderBothCards();
+  cardGenerated = true;
+
+  document.getElementById('card-placeholder').style.display = 'none';
+  document.getElementById('card-preview-wrap').style.display = 'block';
+  document.getElementById('color-toolbar').classList.add('visible');
+  document.getElementById('btn-download').classList.add('visible');
+
+  requestAnimationFrame(scalePreview);
+}
+
+function refreshCards() {
+  lastData.accent    = currentAccent;
+  lastData.accentRgb = currentAccentRgb;
+  lastData.photoUrl  = photoDataUrl;
+  lastData.imgStyle  = photoDataUrl ? getBgStyle() : '';
+  renderBothCards();
+}
+
+function renderBothCards() {
+  const html = buildCardHTML(lastData);
+  ['card-preview', 'card-offscreen'].forEach(id => {
+    const el = document.getElementById(id);
+    el.innerHTML = html;
+    applyAccent(el, lastData.accent, lastData.accentRgb);
+  });
+}
+
+/* ─── SCALE PREVIEW ─── */
+function scalePreview() {
+  const wrap = document.getElementById('card-preview-inner');
+  const card = document.getElementById('card-preview');
+  if (!card || !wrap) return;
+  const w = wrap.clientWidth || wrap.offsetWidth;
+  const scale = w / 960;
+  card.style.transform = `scale(${scale})`;
+  card.style.transformOrigin = 'top left';
+  wrap.style.height = Math.round(540 * scale) + 'px';
+}
+window.addEventListener('resize', () => { if (cardGenerated) scalePreview(); });
+
+/* ─── DOWNLOAD (고화질: html2canvas로 레이아웃 캡처 후 원본 이미지 직접 합성) ─── */
+function downloadCard() {
+  const card = document.getElementById('card-offscreen');
+  const btn  = document.getElementById('btn-download');
+  btn.innerHTML = '저장 중…';
+  btn.style.opacity = '0.6';
+  btn.style.pointerEvents = 'none';
+
+  const SCALE = 3; // 출력 해상도: 960*3=2880 × 540*3=1620
+
+  document.fonts.ready.then(() => {
+    setTimeout(() => {
+      // Step 1: html2canvas로 전체 카드 캡처 (이미지 제외한 레이어 포함)
+      html2canvas(card, {
+        scale: SCALE,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#0c0f15',
+        logging: false,
+        width: 960,
+        height: 540,
+        scrollX: 0,
+        scrollY: 0,
+        x: 0,
+        y: 0,
+      }).then(baseCanvas => {
+        // Step 2: 원본 이미지가 있으면 별도 Canvas에 직접 합성
+        if (!lastData.photoUrl) {
+          // 이미지 없음 → 바로 저장
+          saveCanvas(baseCanvas);
+          return;
+        }
+
+        const img = new Image();
+        img.onload = () => {
+          const W = 960 * SCALE;
+          const H = 540 * SCALE;
+
+          // 최종 합성 캔버스
+          const finalCanvas = document.createElement('canvas');
+          finalCanvas.width  = W;
+          finalCanvas.height = H;
+          const ctx = finalCanvas.getContext('2d');
+
+          // 2a. 이미지 배경을 먼저 그린다 (background-size / position 반영)
+          const posX = 50 + imgX * 0.5;   // 0~100
+          const posY = 50 + imgY * 0.5;
+          const sizeRatio = imgScale / 100; // 1.0 = 100%
+
+          // 이미지 표시 크기 (카드 너비 기준)
+          const imgDrawW = W * sizeRatio;
+          const imgDrawH = imgDrawW * (img.naturalHeight / img.naturalWidth);
+
+          // background-position % 계산
+          const offsetX = (posX / 100) * (W - imgDrawW);
+          const offsetY = (posY / 100) * (H - imgDrawH);
+
+          ctx.save();
+          ctx.beginPath();
+          ctx.roundRect(0, 0, W, H, 12 * SCALE);
+          ctx.clip();
+
+          ctx.drawImage(img, offsetX, offsetY, imgDrawW, imgDrawH);
+          ctx.restore();
+
+          // 2b. 그 위에 html2canvas 결과 (오버레이·텍스트 등) 합성
+          // html2canvas 결과는 이미 배경 이미지를 포함하나 저화질 —
+          // 따라서 html2canvas를 이미지 없이 다시 캡처해야 정확.
+          // 대신 간단하게: baseCanvas 에서 이미지 영역을 투명하게 만들고 합성.
+          // → 가장 간단하고 확실한 방법: 이미지 숨기고 html2canvas 재캡처
+
+          // 이미지 div를 임시로 숨김
+          const bgEl = card.querySelector('.card-bg-photo');
+          if (bgEl) bgEl.style.visibility = 'hidden';
+
+          html2canvas(card, {
+            scale: SCALE,
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: 'transparent',
+            logging: false,
+            width: 960,
+            height: 540,
+            scrollX: 0,
+            scrollY: 0,
+            x: 0,
+            y: 0,
+          }).then(overlayCanvas => {
+            if (bgEl) bgEl.style.visibility = '';
+
+            // 최종: 이미지(고해상도) + 오버레이 합성
+            ctx.drawImage(overlayCanvas, 0, 0, W, H);
+
+            saveCanvas(finalCanvas);
+          }).catch(() => {
+            if (bgEl) bgEl.style.visibility = '';
+            // 실패 시 기본 캔버스로 저장
+            saveCanvas(baseCanvas);
+          });
+        };
+        img.onerror = () => saveCanvas(baseCanvas);
+        img.src = lastData.photoUrl;
+      }).catch(err => {
+        console.error(err);
+        btn.textContent = '오류 발생';
+        btn.style.opacity = '1';
+        btn.style.pointerEvents = 'auto';
+      });
+    }, 150);
+  });
+}
+
+function saveCanvas(canvas) {
+  const btn = document.getElementById('btn-download');
+  const link = document.createElement('a');
+  link.download = `agent_${(lastData.codename||'profile').toLowerCase()}_card.png`;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+  btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> PNG 저장`;
+  btn.style.opacity = '1';
+  btn.style.pointerEvents = 'auto';
+}
+
+/* ─── AGE: 숫자만 허용 ─── */
+document.getElementById('f-age').addEventListener('input', function () {
+  this.value = this.value.replace(/[^0-9]/g, '').slice(0, 3);
+});
+
+/* ─── CODENAME: readonly + keydown 직접 조립 → IME 완전 차단 ─── */
+(function () {
+  const el = document.getElementById('f-codename');
+
+  // readonly로 IME 자체가 뜨지 않게, 커서는 보이게
+  el.setAttribute('readonly', '');
+  el.style.caretColor = 'auto';
+
+  // 포커스 시 readonly 잠깐 해제하면 커서가 보이나, IME는 keydown에서 막음
+  // → 그냥 readonly 유지하고 keydown으로만 편집
+
+  el.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { generateCard(); return; }
+
+    // 허용 키 목록
+    const allowed = /^[A-Za-z0-9 \-]$/;
+
+    if (e.key === 'Backspace') {
+      e.preventDefault();
+      this.value = this.value.slice(0, -1);
+      return;
+    }
+    if (e.key === 'Delete') {
+      e.preventDefault();
+      this.value = '';
+      return;
+    }
+    // 수정자 단독키, 방향키 등 통과
+    if (e.key.length > 1) return;
+
+    e.preventDefault();
+    if (!allowed.test(e.key)) return;
+    if (this.value.length >= 20) return;
+    this.value += e.key.toUpperCase();
+  });
+
+  // 붙여넣기 허용 (영문만 필터)
+  el.addEventListener('paste', function (e) {
+    e.preventDefault();
+    const text = (e.clipboardData || window.clipboardData).getData('text');
+    const filtered = text.replace(/[^A-Za-z0-9 \-]/g, '').toUpperCase().slice(0, 20);
+    this.value = (this.value + filtered).slice(0, 20);
+  });
+
+  // 클릭 시 커서를 끝으로 (readonly라 선택 안 됨)
+  el.addEventListener('click', function () { this.focus(); });
+})();
+</script>
+

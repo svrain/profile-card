@@ -344,12 +344,12 @@ header p{margin-top:0.3rem;font-size:0.72rem;color:var(--text-muted);letter-spac
 
   <div class="field">
     <label>Codename <span style="color:#e05560">*</span></label>
-    <input type="text" id="f-codename" placeholder="CODE NAME" maxlength="20" lang="en" inputmode="text" autocomplete="off" style="text-transform:uppercase;font-family:'Orbitron',sans-serif;letter-spacing:0.08em;">
+    <input type="text" id="f-codename" placeholder="CODE NAME" maxlength="20" autocomplete="off" style="text-transform:uppercase;font-family:'Orbitron',sans-serif;letter-spacing:0.08em;">
   </div>
 
   <div style="display:flex;gap:0.55rem;">
     <div class="field" style="flex:1;"><label>본명</label><input type="text" id="f-realname" placeholder="홍길동" lang="ko"></div>
-    <div class="field" style="flex:0 0 62px;"><label>나이</label><input type="text" id="f-age" placeholder="--" inputmode="numeric" pattern="[0-9]*" maxlength="3"></div>
+    <div class="field" style="flex:0 0 62px;"><label>나이</label><input type="number" id="f-age" placeholder="--" min="1" max="999"></div>
   </div>
 
   <div style="display:flex;gap:0.55rem;">
@@ -721,9 +721,6 @@ function scalePreview() {
 window.addEventListener('resize', () => { if (cardGenerated) scalePreview(); });
 
 /* ─── DOWNLOAD ─── */
-/* 전략: 미리보기 카드(#card-preview)를 화면에 보이는 상태 그대로
-   html2canvas로 캡처 → 이미지가 정상적으로 포함됨.
-   offscreen div는 뷰포트 밖이라 html2canvas가 이미지를 못 읽으므로 사용 안 함. */
 function downloadCard() {
   const btn = document.getElementById('btn-download');
   btn.innerHTML = '저장 중…';
@@ -732,22 +729,24 @@ function downloadCard() {
 
   const CARD_W = 960;
   const CARD_H = 540;
-  const SCALE  = 3; // 출력: 2880×1620
+  const SCALE  = 3;
 
   document.fonts.ready.then(() => {
-    // 미리보기 카드가 scale(transform)되어 있으므로
-    // 임시로 크기 960×540 고정 div를 body에 붙이고 캡처 후 제거
+    // 화면 밖(top:-9999px)에 실제 크기로 렌더, opacity는 1로 유지해야 html2canvas가 제대로 캡처
     const wrapper = document.createElement('div');
-    wrapper.style.cssText = `
-      position:fixed;left:0;top:0;
-      width:${CARD_W}px;height:${CARD_H}px;
-      overflow:hidden;border-radius:12px;
-      z-index:-9999;opacity:0.01;
-      pointer-events:none;
-    `;
+    wrapper.style.cssText = [
+      'position:fixed',
+      'left:0',
+      'top:-' + (CARD_H + 20) + 'px',
+      'width:' + CARD_W + 'px',
+      'height:' + CARD_H + 'px',
+      'overflow:hidden',
+      'border-radius:12px',
+      'z-index:9999',
+      'pointer-events:none',
+    ].join(';');
     document.body.appendChild(wrapper);
 
-    // 카드 HTML + accent 재생성
     const tempCard = document.createElement('div');
     tempCard.className = 'profile-card';
     tempCard.innerHTML = buildCardHTML(lastData);
@@ -755,7 +754,8 @@ function downloadCard() {
     tempCard.style.setProperty('--card-accent-rgb', lastData.accentRgb);
     wrapper.appendChild(tempCard);
 
-    setTimeout(() => {
+    // 레이아웃·이미지 로드 대기 후 캡처
+    const doCapture = () => {
       html2canvas(tempCard, {
         scale: SCALE,
         useCORS: true,
@@ -765,14 +765,9 @@ function downloadCard() {
         width: CARD_W,
         height: CARD_H,
         scrollX: 0,
-        scrollY: 0,
-        x: 0,
-        y: 0,
-        onclone: (doc, el) => {
-          // 클론된 요소도 동일한 크기 보장
-          el.style.width  = CARD_W + 'px';
-          el.style.height = CARD_H + 'px';
-        }
+        scrollY: -window.scrollY,
+        windowWidth: CARD_W,
+        windowHeight: CARD_H,
       }).then(canvas => {
         document.body.removeChild(wrapper);
         const link = document.createElement('a');
@@ -789,61 +784,35 @@ function downloadCard() {
         btn.style.opacity = '1';
         btn.style.pointerEvents = 'auto';
       });
-    }, 200);
+    };
+
+    // 이미지가 있으면 로드 완료 확인 후 캡처, 없으면 바로
+    if (lastData.photoUrl) {
+      const img = tempCard.querySelector('.card-bg-photo');
+      if (img) {
+        // background-image는 로드 이벤트가 없으므로 충분한 딜레이
+        setTimeout(doCapture, 400);
+      } else {
+        setTimeout(doCapture, 200);
+      }
+    } else {
+      setTimeout(doCapture, 200);
+    }
   });
 }
 
-/* ─── AGE: 숫자만 허용 ─── */
-document.getElementById('f-age').addEventListener('input', function () {
-  this.value = this.value.replace(/[^0-9]/g, '').slice(0, 3);
+document.getElementById('f-codename').addEventListener('keydown', e => {
+  if (e.key === 'Enter') generateCard();
 });
 
-/* ─── CODENAME: readonly + keydown 직접 조립 → IME 완전 차단 ─── */
-(function () {
-  const el = document.getElementById('f-codename');
-
-  // readonly로 IME 자체가 뜨지 않게, 커서는 보이게
-  el.setAttribute('readonly', '');
-  el.style.caretColor = 'auto';
-
-  // 포커스 시 readonly 잠깐 해제하면 커서가 보이나, IME는 keydown에서 막음
-  // → 그냥 readonly 유지하고 keydown으로만 편집
-
-  el.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter') { generateCard(); return; }
-
-    // 허용 키 목록
-    const allowed = /^[A-Za-z0-9 \-]$/;
-
-    if (e.key === 'Backspace') {
-      e.preventDefault();
-      this.value = this.value.slice(0, -1);
-      return;
-    }
-    if (e.key === 'Delete') {
-      e.preventDefault();
-      this.value = '';
-      return;
-    }
-    // 수정자 단독키, 방향키 등 통과
-    if (e.key.length > 1) return;
-
-    e.preventDefault();
-    if (!allowed.test(e.key)) return;
-    if (this.value.length >= 20) return;
-    this.value += e.key.toUpperCase();
-  });
-
-  // 붙여넣기 허용 (영문만 필터)
-  el.addEventListener('paste', function (e) {
-    e.preventDefault();
-    const text = (e.clipboardData || window.clipboardData).getData('text');
-    const filtered = text.replace(/[^A-Za-z0-9 \-]/g, '').toUpperCase().slice(0, 20);
-    this.value = (this.value + filtered).slice(0, 20);
-  });
-
-  // 클릭 시 커서를 끝으로 (readonly라 선택 안 됨)
-  el.addEventListener('click', function () { this.focus(); });
-})();
+/* 코드네임: 영문·숫자·공백·하이픈만 허용 (readonly 없이) */
+document.getElementById('f-codename').addEventListener('input', function () {
+  const s = this.selectionStart;
+  const filtered = this.value.replace(/[^A-Za-z0-9 \-]/g, '').toUpperCase();
+  if (this.value !== filtered) {
+    this.value = filtered;
+    this.setSelectionRange(s - 1, s - 1);
+  }
+});
 </script>
 

@@ -805,15 +805,11 @@ document.getElementById('f-codename').addEventListener('keydown', e => {
   if (e.key === 'Enter') generateCard();
 });
 
-/* 코드네임: 영문·숫자·공백·하이픈만 허용 (readonly 없이) */
+/* 코드네임: 자동 대문자 */
 document.getElementById('f-codename').addEventListener('input', function () {
   const s = this.selectionStart;
-  const filtered = this.value.replace(/[^A-Za-z0-9 \-]/g, '').toUpperCase();
-  if (this.value !== filtered) {
-    const diff = this.value.length - filtered.length;
-    this.value = filtered;
-    this.setSelectionRange(s - diff, s - diff);
-  }
+  this.value = this.value.toUpperCase();
+  this.setSelectionRange(s, s);
 });
 </script>
 

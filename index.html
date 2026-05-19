@@ -810,8 +810,9 @@ document.getElementById('f-codename').addEventListener('input', function () {
   const s = this.selectionStart;
   const filtered = this.value.replace(/[^A-Za-z0-9 \-]/g, '').toUpperCase();
   if (this.value !== filtered) {
+    const diff = this.value.length - filtered.length;
     this.value = filtered;
-    this.setSelectionRange(s - 1, s - 1);
+    this.setSelectionRange(s - diff, s - diff);
   }
 });
 </script>
